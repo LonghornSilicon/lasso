@@ -1,0 +1,146 @@
+{
+  "section": "LASSO benchmark \u2014 pre-FPGA baseline",
+  "generated": "2026-04-22T04:18:19.114407",
+  "key_claims": {
+    "compression_ratio": 2.086,
+    "bw_reduction_pct": 52.1,
+    "q4_fraction": 0.2157,
+    "effective_bits": 7.668,
+    "best_speedup": 4.08,
+    "best_speedup_cfg": "tiny-LLM, seq_len=1024",
+    "worst_speedup": 2.09
+  },
+  "rtl_cycle_highlights": {
+    "kve_encode_cycles_per_group": 11,
+    "kve_decode_cycles_per_group": 7,
+    "tiu_cycles_per_token_8heads": 19
+  },
+  "roofline": {
+    "fpga_compute_roof_GFLOPs": 19.2,
+    "memory_bound_configs": []
+  },
+  "sram_on_chip_fit": {
+    "tiny_LLM_max_seq": 1602,
+    "small_LLM_max_seq": 801,
+    "medium_LLM_max_seq": 400,
+    "llama7b_max_seq": 100
+  },
+  "paper_table_rows": [
+    {
+      "model": "tiny-LLM",
+      "seq_len": 256,
+      "baseline_kv_kb": 128.0,
+      "lasso_kv_kb": 61.3,
+      "lasso_fits_sram": true,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 2.09
+    },
+    {
+      "model": "tiny-LLM",
+      "seq_len": 1024,
+      "baseline_kv_kb": 512.0,
+      "lasso_kv_kb": 245.4,
+      "lasso_fits_sram": true,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 4.08
+    },
+    {
+      "model": "tiny-LLM",
+      "seq_len": 4096,
+      "baseline_kv_kb": 2048.0,
+      "lasso_kv_kb": 981.6,
+      "lasso_fits_sram": false,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 2.09
+    },
+    {
+      "model": "small-LLM",
+      "seq_len": 256,
+      "baseline_kv_kb": 256.0,
+      "lasso_kv_kb": 122.7,
+      "lasso_fits_sram": true,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 2.09
+    },
+    {
+      "model": "small-LLM",
+      "seq_len": 1024,
+      "baseline_kv_kb": 1024.0,
+      "lasso_kv_kb": 490.8,
+      "lasso_fits_sram": false,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 2.09
+    },
+    {
+      "model": "small-LLM",
+      "seq_len": 4096,
+      "baseline_kv_kb": 4096.0,
+      "lasso_kv_kb": 1963.1,
+      "lasso_fits_sram": false,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 2.09
+    },
+    {
+      "model": "medium-LLM",
+      "seq_len": 256,
+      "baseline_kv_kb": 512.0,
+      "lasso_kv_kb": 245.4,
+      "lasso_fits_sram": true,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 4.08
+    },
+    {
+      "model": "medium-LLM",
+      "seq_len": 1024,
+      "baseline_kv_kb": 2048.0,
+      "lasso_kv_kb": 981.6,
+      "lasso_fits_sram": false,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 2.09
+    },
+    {
+      "model": "medium-LLM",
+      "seq_len": 4096,
+      "baseline_kv_kb": 8192.0,
+      "lasso_kv_kb": 3926.2,
+      "lasso_fits_sram": false,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 2.09
+    },
+    {
+      "model": "llama-7B",
+      "seq_len": 256,
+      "baseline_kv_kb": 2048.0,
+      "lasso_kv_kb": 981.6,
+      "lasso_fits_sram": false,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 2.09
+    },
+    {
+      "model": "llama-7B",
+      "seq_len": 1024,
+      "baseline_kv_kb": 8192.0,
+      "lasso_kv_kb": 3926.2,
+      "lasso_fits_sram": false,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 2.09
+    },
+    {
+      "model": "llama-7B",
+      "seq_len": 4096,
+      "baseline_kv_kb": 32768.0,
+      "lasso_kv_kb": 15705.0,
+      "lasso_fits_sram": false,
+      "bw_reduction_pct": 52.1,
+      "bw_speedup": 2.09
+    }
+  ],
+  "methodology_notes": [
+    "beta sampled from half-normal(sigma=0.8) to model attention entropy distribution",
+    "group_size=32 WHT; overhead=17 bits/group (UINT16 scale + mode bit)",
+    "SRAM BW=4.8 GB/s (conservative 200 MHz x 6 banks x 4 B)",
+    "DRAM BW=25.6 GB/s (DDR4-3200 single-channel)",
+    "DSP48E2: 32 parallel MACs; ZCU102 1.3% DSP utilisation",
+    "Speedup is BW-bound; compute stays same for exact attention"
+  ]
+}

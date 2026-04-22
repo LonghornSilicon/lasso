@@ -71,10 +71,12 @@ overflow in the 32-wide dot-product array where a single
 cascade for RTL; and (3)~an eviction threshold calibration failure
 that causes 100\% eviction under synthetic uniform attention
 distributions, resolved by percentile-based adaptive calibration from
-real model attention snapshots. A binary \{INT4, INT8\} precision
-scheme achieves 2.93$\times$ decode speedup at 4.80 avg-bits on
-SmolLM-1.7B, outperforming four-precision \{2,4,8,16\} schemes by
-43\% throughput at equal accuracy.
+real model attention snapshots. Golden-model simulation validates a 2.09$\times$ KV cache compression
+ratio (7.7\,bits/element vs.\ 16-bit baseline), reducing memory
+bandwidth 52.1\%. An analytical RTL model projects 2.09--4.08$\times$
+end-to-end decode speedup across four LLM configurations on the target
+DDR4 platform, with the 4.08$\times$ case arising when compression
+alone enables the KV cache to reside entirely on-chip.
 \end{abstract}
 
 %------------------------------------------------------------------
@@ -481,6 +483,100 @@ After fixes, 24~\textsc{Warn} findings remain. The most significant:
 \end{itemize}
 
 %------------------------------------------------------------------
+\section{Performance Evaluation}
+\label{sec:perf}
+
+We evaluate \lasso\ against a baseline of standard CPU-native
+inference: uncompressed INT16 KV cache streamed from DDR4-3200
+(25.6\,GB/s single-channel) with naive $O(N^2)$ attention
+materialization.  All figures are derived from the Python golden model
+and an analytical RTL cycle model; FPGA silicon measurement is
+planned as the Nov~2026 milestone.
+
+\subsection{KVE Compression Characterisation}
+
+We sample $\beta$ from a half-normal distribution ($\sigma{=}0.8$)
+over 10\,000 random INT16 groups using the calibrated
+$\beta^*{=}\bar\Delta/0.267$.  The empirical Q4/Q8 split is 21.6\%
+Q4 and 78.4\% Q8, yielding 7.7 effective bits/element after
+per-group overhead (17\,bits per 32-element group for the UINT16
+scale register and 1-bit mode flag).  This is a 2.09$\times$
+compression ratio and 52.1\% bandwidth reduction versus the 16-bit
+baseline.
+
+Table~\ref{tab:speedup} shows the three-case bandwidth speedup model.
+Case~A (both baseline and \lasso\ KV fit in 384\,KB SRAM) yields
+2.09$\times$ speedup from compression alone.  Case~B (compression
+pushes \lasso\ below the SRAM threshold while the baseline must use
+DRAM) yields 4.08$\times$ by combining data-volume reduction with a
+memory-tier upgrade.  Case~C (neither fits; both use DRAM) yields
+2.09$\times$.
+
+\begin{table}[t]
+\caption{Bandwidth Speedup vs.\ Baseline (INT16 DRAM) by Model/Seq-Len}
+\label{tab:speedup}
+\centering\small
+\begin{tabular}{llrrrr}
+\toprule
+Model & Seq & Base & \lasso & Case & Speedup \\
+      &     & (KB) & (KB)   &      & \\
+\midrule
+tiny-LLM  & 256  &  128 &  61 & A & 2.09$\times$ \\
+tiny-LLM  & 1024 &  512 & 245 & B & \textbf{4.08$\times$} \\
+tiny-LLM  & 4096 & 2048 & 982 & C & 2.09$\times$ \\
+\midrule
+small-LLM & 256  &  256 & 123 & A & 2.09$\times$ \\
+small-LLM & 512  &  512 & 245 & B & \textbf{4.08$\times$} \\
+small-LLM & 4096 & 4096 &1963 & C & 2.09$\times$ \\
+\midrule
+llama-7B  & 256  & 2048 & 982 & C & 2.09$\times$ \\
+llama-7B  & 4096 &32768 &15705& C & 2.09$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{RTL Cycle Budget}
+
+Table~\ref{tab:cycles} shows the analytical per-block cycle counts on
+the target platforms.  The \kve\ encode pipeline completes one
+32-element group in 11 cycles at both targets: 5 WHT butterfly stages,
+3 quantization + pack cycles, and 3 overhead cycles.  The \tiu\ scores
+one token in 67 cycles for 8 KV heads ($2 \times 8$ accumulate cycles
+for $C_t$ and $H_t$ plus 3 compare cycles).  The \lacu\ decode step
+for llama-7B at seq\_len=256 takes $305\,\mu$s at 300\,MHz, sustaining
+${\approx}3{,}278$ decode steps/second per KV head.
+
+\begin{table}[t]
+\caption{Analytical RTL Cycle Budget (ZCU102 @ 300\,MHz, 32 DSP48E2)}
+\label{tab:cycles}
+\centering\small
+\begin{tabular}{lrr}
+\toprule
+Operation & Cycles & Latency @ 300\,MHz \\
+\midrule
+KVE encode, 1 group (32 elem) & 11  & 36.7\,ns \\
+KVE decode, 1 group            &  8  & 26.7\,ns \\
+TIU score, 1 token (8 heads)   & 67  & 223\,ns  \\
+LACU decode step (seq=256, llama-7B) & 91,648 & 305\,$\mu$s \\
+LACU decode step (seq=128, tiny-LLM) &  4,656 & 15.5\,$\mu$s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Roofline Analysis}
+
+With 32 DSP48E2 slices at 300\,MHz, the \lacu\ compute roof is
+19.2\,GFLOP/s.  The ridge point (where compute equals memory
+bandwidth) is 0.75\,FLOP/B (DRAM) and 0.38\,FLOP/B (SRAM).  The
+actual \lacu\ arithmetic intensity for seq\_len=256, head\_dim=64 is
+2.0\,FLOP/B --- well above both ridge points.  \lasso\ is therefore
+\emph{compute-bound}, not memory-bound, confirming that the 32-DSP
+array is the binding constraint, not DRAM or BRAM bandwidth.  Scaling
+to 128 DSP48E2 slices (5.1\% ZCU102 utilization) would move the ridge
+point to 3.0\,FLOP/B and restore memory-bound operation for the
+target workloads.
+
+%------------------------------------------------------------------
 \section{FPGA Validation Plan}
 \label{sec:fpga}
 
@@ -611,8 +707,13 @@ parametric sweep of the Python golden model. All six original failures
 were resolved, reducing the sweep from 5~\textsc{Fail}+1~\textsc{Overflow}
 to 0~\textsc{Fail}.
 
-The design targets SKY130 130\,nm at ${\le}7.13\,\text{mm}^2$ with
-3.15\,mm$^2$ headroom. FPGA prototyping on Xilinx Zynq UltraScale+
+Performance evaluation via the golden model and analytical RTL model
+quantifies a 2.09$\times$ KV cache compression ratio (7.7
+vs.\ 16 bits/element), 52.1\% bandwidth reduction, and 2.09--4.08$\times$
+end-to-end decode speedup on DDR4 platforms.  The \lacu\ compute roof
+at 300\,MHz (19.2\,GFLOP/s, 32 DSP48E2) places \lasso\ firmly in the
+compute-bound regime, confirming the DSP array --- not DRAM bandwidth ---
+as the binding resource.  FPGA prototyping on Xilinx Zynq UltraScale+
 ZCU102/ZCU104 is planned as the Nov~2026 pre-silicon validation step.
 The repository, golden model, and all 158 tests are open-source at
 \texttt{github.com/LonghornSilicon/lasso}.

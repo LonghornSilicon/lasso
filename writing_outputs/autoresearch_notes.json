@@ -1,0 +1,273 @@
+{
+  "generated": "2026-04-22T04:22:28",
+  "total_runs": 16,
+  "kept": 7,
+  "discarded": 9,
+  "errored": 0,
+  "baseline_fom": 1.6818,
+  "best_fom": 4.8688,
+  "best_tag": "H_composed",
+  "total_fom_gain_pct": 189.5,
+  "paper_table": [
+    {
+      "tag": "H1-baseline",
+      "fom": 1.6818,
+      "bw_speedup": 2.086,
+      "decode_sps": 3278,
+      "norm_err": 0.24021,
+      "status": "keep"
+    },
+    {
+      "tag": "H2-group16",
+      "fom": 1.4933,
+      "bw_speedup": 1.951,
+      "decode_sps": 3278,
+      "norm_err": 0.30667,
+      "status": "discard"
+    },
+    {
+      "tag": "H3-group64",
+      "fom": 1.8108,
+      "bw_speedup": 2.15,
+      "decode_sps": 3278,
+      "norm_err": 0.18754,
+      "status": "keep"
+    },
+    {
+      "tag": "H4-group128",
+      "fom": 1.92,
+      "bw_speedup": 2.197,
+      "decode_sps": 3278,
+      "norm_err": 0.14437,
+      "status": "keep"
+    },
+    {
+      "tag": "H5-beta-conservative",
+      "fom": 1.557,
+      "bw_speedup": 1.932,
+      "decode_sps": 3278,
+      "norm_err": 0.24074,
+      "status": "discard"
+    },
+    {
+      "tag": "H6-beta-aggressive",
+      "fom": 1.9557,
+      "bw_speedup": 2.425,
+      "decode_sps": 3278,
+      "norm_err": 0.2399,
+      "status": "keep"
+    },
+    {
+      "tag": "H7-tile128",
+      "fom": 1.6865,
+      "bw_speedup": 2.086,
+      "decode_sps": 3287,
+      "norm_err": 0.24021,
+      "status": "discard"
+    },
+    {
+      "tag": "H8-tile32",
+      "fom": 1.6725,
+      "bw_speedup": 2.086,
+      "decode_sps": 3260,
+      "norm_err": 0.24021,
+      "status": "discard"
+    },
+    {
+      "tag": "H9-ndsp64",
+      "fom": 2.6227,
+      "bw_speedup": 2.086,
+      "decode_sps": 5112,
+      "norm_err": 0.24021,
+      "status": "keep"
+    },
+    {
+      "tag": "H10-ndsp128",
+      "fom": 3.6412,
+      "bw_speedup": 2.086,
+      "decode_sps": 7097,
+      "norm_err": 0.24021,
+      "status": "keep"
+    },
+    {
+      "tag": "H11-pte1024",
+      "fom": 1.6818,
+      "bw_speedup": 2.086,
+      "decode_sps": 3278,
+      "norm_err": 0.24021,
+      "status": "discard"
+    },
+    {
+      "tag": "H12-uniform-codebook",
+      "fom": 1.9827,
+      "bw_speedup": 2.086,
+      "decode_sps": 3278,
+      "norm_err": 0.05204,
+      "status": "discard"
+    },
+    {
+      "tag": "H13-retain30",
+      "fom": 1.6818,
+      "bw_speedup": 2.086,
+      "decode_sps": 3278,
+      "norm_err": 0.24021,
+      "status": "discard"
+    },
+    {
+      "tag": "H14-retain70",
+      "fom": 1.6818,
+      "bw_speedup": 2.086,
+      "decode_sps": 3278,
+      "norm_err": 0.24021,
+      "status": "discard"
+    },
+    {
+      "tag": "H15-sink8",
+      "fom": 1.6818,
+      "bw_speedup": 2.086,
+      "decode_sps": 3278,
+      "norm_err": 0.24021,
+      "status": "discard"
+    },
+    {
+      "tag": "H_composed",
+      "fom": 4.8688,
+      "bw_speedup": 2.573,
+      "decode_sps": 7097,
+      "norm_err": 0.14425,
+      "status": "keep"
+    }
+  ],
+  "kept_findings": [
+    {
+      "tag": "H1-baseline",
+      "notes": "Baseline: group=32 tile=64 beta=0.267 ndsp=32 pte=256",
+      "fom": 1.6818,
+      "bw_speedup": 2.086,
+      "decode_sps": 3278
+    },
+    {
+      "tag": "H3-group64",
+      "notes": "Increase group size to 64: more WHT mixing -> better compression, larger errors",
+      "fom": 1.8108,
+      "bw_speedup": 2.15,
+      "decode_sps": 3278
+    },
+    {
+      "tag": "H4-group128",
+      "notes": "Group size 128: maximum compression ratio, expect error degradation",
+      "fom": 1.92,
+      "bw_speedup": 2.197,
+      "decode_sps": 3278
+    },
+    {
+      "tag": "H6-beta-aggressive",
+      "notes": "Lower beta* divisor -> easier to be Q4 -> more Q4 -> more compression, higher er",
+      "fom": 1.9557,
+      "bw_speedup": 2.425,
+      "decode_sps": 3278
+    },
+    {
+      "tag": "H9-ndsp64",
+      "notes": "Double DSP count to 64: 2x compute throughput, check if still compute-bound",
+      "fom": 2.6227,
+      "bw_speedup": 2.086,
+      "decode_sps": 5112
+    },
+    {
+      "tag": "H10-ndsp128",
+      "notes": "128 DSPs: 4x throughput, roofline may shift to memory-bound for typical workload",
+      "fom": 3.6412,
+      "bw_speedup": 2.086,
+      "decode_sps": 7097
+    },
+    {
+      "tag": "H_composed",
+      "notes": "Composed best: ['group_size', 'beta_star_divisor', 'n_dsp']",
+      "fom": 4.8688,
+      "bw_speedup": 2.573,
+      "decode_sps": 7097
+    }
+  ],
+  "discarded_findings": [
+    {
+      "tag": "H2-group16",
+      "notes": "Reduce group size to 16: less WHT mixing -> lower error, more per-element overhe",
+      "fom": 1.4933,
+      "reason": "FOM did not improve >= 1% over current best"
+    },
+    {
+      "tag": "H5-beta-conservative",
+      "notes": "Higher beta* divisor -> harder to be Q4 -> more Q8 -> better quality, less compr",
+      "fom": 1.557,
+      "reason": "FOM did not improve >= 1% over current best"
+    },
+    {
+      "tag": "H7-tile128",
+      "notes": "LACU tile size 128: fewer softmax rescales (seq/128 vs seq/64), larger on-chip f",
+      "fom": 1.6865,
+      "reason": "FOM did not improve >= 1% over current best"
+    },
+    {
+      "tag": "H8-tile32",
+      "notes": "LACU tile size 32: more softmax rescales, potentially better numerical precision",
+      "fom": 1.6725,
+      "reason": "FOM did not improve >= 1% over current best"
+    },
+    {
+      "tag": "H11-pte1024",
+      "notes": "Expand PTE to 1024 entries: 4x more tokens can live in SRAM",
+      "fom": 1.6818,
+      "reason": "FOM did not improve >= 1% over current best"
+    },
+    {
+      "tag": "H12-uniform-codebook",
+      "notes": "Uniform quantization instead of Lloyd-Max: simpler hardware (no LUT), expect hig",
+      "fom": 1.9827,
+      "reason": "FOM did not improve >= 1% over current best"
+    },
+    {
+      "tag": "H13-retain30",
+      "notes": "Aggressive eviction (retain 30%): more tokens evicted, SRAM holds fewer but most",
+      "fom": 1.6818,
+      "reason": "FOM did not improve >= 1% over current best"
+    },
+    {
+      "tag": "H14-retain70",
+      "notes": "Conservative eviction (retain 70%): keep most tokens, SRAM fills faster",
+      "fom": 1.6818,
+      "reason": "FOM did not improve >= 1% over current best"
+    },
+    {
+      "tag": "H15-sink8",
+      "notes": "Double attention sinks to 8: more tokens bypass eviction scoring",
+      "fom": 1.6818,
+      "reason": "FOM did not improve >= 1% over current best"
+    }
+  ],
+  "design_space_conclusions": [
+    "Group size sensitivity: best group_size=128 (FOM=1.9200). Overhead per element decreases with larger group but error grows as WHT mixes more elements.",
+    "Beta* sensitivity: best divisor=0.15 (FOM=1.9557). Controls Q4/Q8 split; conservative (higher divisor) favours quality, aggressive (lower) favours compression.",
+    "Tile size: best tile_size=128 (FOM=1.6865). Larger tiles reduce softmax rescale overhead; smaller tiles have lower on-chip footprint.",
+    "DSP count: best n_dsp=128 (FOM=3.6412). At n_dsp=64, LACU becomes memory-bound \u2014 extra DSPs are wasted.",
+    "Codebook: uniform vs Lloyd-Max. Uniform FOM=1.9827 (norm_err=0.05204). Lloyd-Max provides better error bounds; uniform is simpler RTL but measurably worse."
+  ],
+  "paper_sentences": {
+    "H1-baseline": "H1-baseline: FOM +0.0%. Achieves 2.09x compression, 2.09x BW speedup, norm_err=0.2402, 3278 decode steps/s @ 300 MHz.",
+    "H2-group16": "H2-group16: degrades FOM by -11.2%. Compression 2.09x, BW speedup 1.95x, norm_err=0.3067. Design parameter discarded: tradeoff not Pareto-improving.",
+    "H3-group64": "H3-group64: FOM +7.7%. Achieves 2.09x compression, 2.15x BW speedup, norm_err=0.1875, 3278 decode steps/s @ 300 MHz.",
+    "H4-group128": "H4-group128: FOM +14.2%. Achieves 2.09x compression, 2.20x BW speedup, norm_err=0.1444, 3278 decode steps/s @ 300 MHz.",
+    "H5-beta-conservative": "H5-beta-conservative: degrades FOM by -7.4%. Compression 2.09x, BW speedup 1.93x, norm_err=0.2407. Design parameter discarded: tradeoff not Pareto-improving.",
+    "H6-beta-aggressive": "H6-beta-aggressive: FOM +16.3%. Achieves 2.09x compression, 2.42x BW speedup, norm_err=0.2399, 3278 decode steps/s @ 300 MHz.",
+    "H7-tile128": "H7-tile128: degrades FOM by 0.3%. Compression 2.09x, BW speedup 2.09x, norm_err=0.2402. Design parameter discarded: tradeoff not Pareto-improving.",
+    "H8-tile32": "H8-tile32: degrades FOM by -0.6%. Compression 2.09x, BW speedup 2.09x, norm_err=0.2402. Design parameter discarded: tradeoff not Pareto-improving.",
+    "H9-ndsp64": "H9-ndsp64: FOM +55.9%. Achieves 2.09x compression, 2.09x BW speedup, norm_err=0.2402, 5112 decode steps/s @ 300 MHz.",
+    "H10-ndsp128": "H10-ndsp128: FOM +116.5%. Achieves 2.09x compression, 2.09x BW speedup, norm_err=0.2402, 7097 decode steps/s @ 300 MHz.",
+    "H11-pte1024": "H11-pte1024: degrades FOM by 0.0%. Compression 2.09x, BW speedup 2.09x, norm_err=0.2402. Design parameter discarded: tradeoff not Pareto-improving.",
+    "H12-uniform-codebook": "H12-uniform-codebook: degrades FOM by 17.9%. Compression 2.09x, BW speedup 2.09x, norm_err=0.0520. Design parameter discarded: tradeoff not Pareto-improving.",
+    "H13-retain30": "H13-retain30: degrades FOM by 0.0%. Compression 2.09x, BW speedup 2.09x, norm_err=0.2402. Design parameter discarded: tradeoff not Pareto-improving.",
+    "H14-retain70": "H14-retain70: degrades FOM by 0.0%. Compression 2.09x, BW speedup 2.09x, norm_err=0.2402. Design parameter discarded: tradeoff not Pareto-improving.",
+    "H15-sink8": "H15-sink8: degrades FOM by 0.0%. Compression 2.09x, BW speedup 2.09x, norm_err=0.2402. Design parameter discarded: tradeoff not Pareto-improving.",
+    "H_composed": "H_composed: FOM +189.5%. Achieves 2.09x compression, 2.57x BW speedup, norm_err=0.1442, 7097 decode steps/s @ 300 MHz."
+  }
+}

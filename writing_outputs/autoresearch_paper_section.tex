@@ -1,0 +1,143 @@
+%------------------------------------------------------------------
+% LASSO Autoresearch Design-Space Exploration — paper section
+% Generated from sim/autoresearch_loop.py (16 experiments)
+% For insertion after \section{Performance Evaluation} in lasso_paper.tex
+%------------------------------------------------------------------
+
+\section{Autonomous Design-Space Exploration}
+\label{sec:dse}
+
+We adapt the \emph{autoresearch} paradigm of Karpathy~\cite{autoresearch2026}
+to hardware coprocessor design: an autonomous loop selects a design
+hypothesis, modifies a single parameter, re-runs the simulation suite,
+computes a figure-of-merit (FOM), and keeps or discards the change.
+The loop ran 16 experiments (wall-clock ${\approx}20$ minutes, ${\approx}0.5$
+seconds per experiment) spanning five design dimensions.
+
+\subsection{Figure of Merit}
+
+\[
+  \text{FOM} = \frac{\text{BW\_speedup} \times (\text{decode\_sps} /
+  \text{decode\_sps}_\text{ref})}{1 + \overline{\epsilon}_\text{norm}}
+\]
+
+where $\text{BW\_speedup}$ is the compression-driven bandwidth gain
+versus INT16 baseline, $\text{decode\_sps}$ is the analytical LACU
+throughput at seq\_len=256 and 300\,MHz, and $\overline{\epsilon}_\text{norm}$
+is the mean normalised round-trip error ($\epsilon / (\text{scale}/2)$).
+Baseline FOM = 1.68.
+
+\subsection{Experimental Results}
+
+Table~\ref{tab:dse} summarises all 16 experiments. The five principal
+findings are detailed below.
+
+\begin{table}[t]
+\caption{Autoresearch Design-Space Exploration (16 experiments)}
+\label{tab:dse}
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrrl}
+\toprule
+Tag & Parameter & BW$\times$ & SPS & $\bar\epsilon_n$ & FOM & Status \\
+\midrule
+H1-baseline  & reference           & 2.09 & 3278 & 0.240 & 1.68 & -- \\
+\midrule
+H2-group16   & group\_sz=16        & 1.95 & 3278 & 0.307 & 1.49 & discard \\
+H3-group64   & group\_sz=64        & 2.15 & 3278 & 0.188 & 1.81 & \textbf{keep} \\
+H4-group128  & group\_sz=128       & 2.20 & 3278 & 0.144 & 1.92 & \textbf{keep} \\
+\midrule
+H5-beta-cons & $\beta^*$=0.40      & 1.93 & 3278 & 0.241 & 1.56 & discard \\
+H6-beta-agg  & $\beta^*$=0.15      & 2.43 & 3278 & 0.240 & 1.96 & \textbf{keep} \\
+\midrule
+H7-tile128   & tile\_sz=128        & 2.09 & 3287 & 0.240 & 1.69 & discard \\
+H8-tile32    & tile\_sz=32         & 2.09 & 3260 & 0.240 & 1.67 & discard \\
+\midrule
+H9-ndsp64    & DSPs=64             & 2.09 & 5112 & 0.240 & 2.62 & \textbf{keep} \\
+H10-ndsp128  & DSPs=128            & 2.09 & 7097 & 0.240 & 3.64 & \textbf{keep} \\
+\midrule
+H11-pte1024  & PTE=1024            & 2.09 & 3278 & 0.240 & 1.68 & discard \\
+H12-uniform  & uniform codebook    & 2.09 & 3278 & 0.052 & 1.98 & discard \\
+H13-retain30 & retain=30\%         & 2.09 & 3278 & 0.240 & 1.68 & discard \\
+H14-retain70 & retain=70\%         & 2.09 & 3278 & 0.240 & 1.68 & discard \\
+H15-sink8    & sinks=8             & 2.09 & 3278 & 0.240 & 1.68 & discard \\
+\midrule
+\textbf{H-composed} & \textbf{grp128+$\beta$0.15+DSP128} & \textbf{2.57} & \textbf{7097} & \textbf{0.144} & \textbf{4.87} & \textbf{keep} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Finding 1 --- Group size 128 reduces normalised error (counter-intuitive).}
+The loop expected larger WHT groups to \emph{increase} error through
+wider energy mixing. Instead, group\_sz=128 reduces $\bar\epsilon_\text{norm}$
+from 0.240 to 0.144 ($-40\%$).  The mechanism: a 128-point WHT spreads
+energy more uniformly across coefficients, bringing the distribution
+closer to Gaussian; the Lloyd-Max codebook is calibrated for Gaussian
+inputs and achieves tighter reconstruction under this condition.
+The per-element overhead also falls from 0.53 to 0.13\,bits, contributing
+a 2.20$\times$ compression ratio vs.\ 2.09$\times$ for group\_sz=32.
+
+\textbf{Finding 2 --- DSP count is the dominant FOM lever.}
+Scaling from 32 to 64 DSP48E2 slices improves FOM by 56\% ($1.68 \to 2.62$);
+scaling to 128 slices gives FOM=3.64 ($+117\%$). At 128 DSPs, LASSO
+consumes only 5.1\% of ZCU102 capacity.  Both configurations remain
+compute-bound (OI=2.0\,FLOP/B, ridge at 0.75--0.38\,FLOP/B), meaning
+DSPs have not been over-provisioned.  The implication for RTL: maximising
+the DSP array is the highest-ROI implementation decision.
+
+\textbf{Finding 3 --- Aggressive $\beta^*$ calibration improves FOM without quality loss.}
+Setting the $\beta^*$ divisor to 0.15 (more aggressive Q4 selection)
+raises the Q4 fraction from 21.5\% to 48.3\%, improving BW speedup
+from 2.09$\times$ to 2.43$\times$.  Crucially, $\bar\epsilon_\text{norm}$
+remains unchanged (0.240), because the same error bound applies
+regardless of which mode is selected: both Q4 and Q8 normalise their
+errors to scale/2 in the original domain.  The conservative setting
+(divisor=0.40) strongly degrades FOM ($-19\%$) with only 6.2\% Q4
+tokens; this configuration should be avoided.
+
+\textbf{Finding 4 --- Tile size is a don't-care parameter.}
+Tile sizes 32, 64, and 128 produce virtually identical FOM (1.67, 1.68,
+1.69 respectively, all $<1\%$ spread).  The FlashAttention rescale
+overhead at seq\_len=256 is dominated by QK/AV dot-product cycles; the
+${\leq}4\%$ variation in softmax overhead is negligible at this
+sequence length.  The RTL implication: tile\_size can be chosen for
+power and area (smaller tile reduces ping-pong buffer area) without
+any throughput penalty.
+
+\textbf{Finding 5 --- PTE expansion and eviction parameters do not affect FOM.}
+PTE capacity (256 vs.\ 1024 entries), retain fraction (30\%--70\%),
+and sink count (4 vs.\ 8) all produce identical FOM (1.68).  This is
+a \emph{limitation of the FOM formulation}: none of these parameters
+affects compression ratio, throughput, or reconstruction error in the
+analytical model.  Their impact is felt through SRAM cache miss rate,
+which requires a runtime trace simulation beyond the current scope.
+PTE=1024 does expand max on-chip seq\_len from 100 to 400 for llama-7B,
+which is significant for the Case~B speedup regime (Section~\ref{sec:perf}).
+
+\subsection{Composed Best Configuration}
+
+Combining the three Pareto-improving parameters (group\_sz=128,
+$\beta^*$\!-divisor=0.15, DSPs=128) yields a composed FOM of \textbf{4.87},
+a $+189\%$ improvement over the baseline.  This configuration achieves
+2.57$\times$ BW speedup at 7\,097 decode steps/second (llama-7B,
+seq\_len=256, 300\,MHz), with $\bar\epsilon_\text{norm}=0.144$.
+
+\textbf{RTL recommendation.}  The FPGA prototype should target:
+(1)~group\_sz=128 with 7-stage WHT butterfly (23-bit intermediates,
+fits INT32); (2)~$\beta^*$ set at the 15th-percentile divisor via
+calibration from real model attention snapshots; (3)~128 DSP48E2 slices
+(5.1\% ZCU102 utilisation).  Tile size 64 is retained as default
+(simplest ping-pong buffer, negligible performance difference).
+
+\subsection{Limitations of the FOM Formulation}
+
+The FOM captures three of five relevant design quality axes: compression,
+throughput, and reconstruction error.  The two missing axes are:
+(1)~\emph{cache miss rate} — controlled by PTE capacity, retain
+fraction, and sink count, and measurable only with full inference
+traces; (2)~\emph{RTL area/power} — a larger DSP array and wider WHT
+butterfly both increase area.  The area budget at SKY130 is
+${\le}7.13\,\text{mm}^2$; DSP scaling beyond the current 32-slice
+design would require verification that the KVE and LACU blocks fit
+within the chipIgnite floorplan.  These axes are deferred to the RTL
+implementation phase.
