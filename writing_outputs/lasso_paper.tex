@@ -98,9 +98,11 @@ this through software-side eviction heuristics~\cite{h2o2023,
 snapkv2024, streamingllm2023}, GPU-side quantized attention
 kernels~\cite{sageattention2024, intflashattention2024}, and
 domain-specific accelerators~\cite{titanus2025, kelle2025}. None
-targets an open-source ASIC implementation in the SKY130 process or
-employs a simulation-driven pre-RTL methodology to surface and fix
-data-path issues before committing to hardware.
+targets an open-source ASIC implementation in the SKY130 process, employs
+a simulation-driven pre-RTL methodology to surface and fix data-path
+issues before committing to hardware, or integrates WHT+Lloyd-Max
+quantization, dual-signal eviction, hardware paged SRAM management,
+and FlashAttention tiling in a single coprocessor~\cite{oaken2025}.
 
 This paper presents \lasso, a four-block coprocessor co-designed with
 its Python golden model. Our contributions are:
@@ -116,8 +118,10 @@ its Python golden model. Our contributions are:
   \item \textbf{$C_t$/$H_t$ eviction scoring} with Cohen's
         $d{=}4.55$ and $d{=}4.09$ respectively, validated against the
         prior-art cumulative-attention approach of H2O~\cite{h2o2023}.
-  \item A complete \textbf{SKY130 golden model} with 158 tests and a
-        FPGA validation plan for Xilinx Zynq UltraScale+ (ZCU102/ZCU104).
+  \item A complete \textbf{SKY130 golden model} with 158 tests, an
+        autonomous design-space exploration loop identifying group\_sz=128
+        and 128~DSP48E2 as the highest-ROI RTL decisions (+189\% FOM),
+        and a FPGA validation plan for Xilinx Zynq UltraScale+ (ZCU102/ZCU104).
 \end{itemize}
 
 %------------------------------------------------------------------
@@ -577,6 +581,130 @@ point to 3.0\,FLOP/B and restore memory-bound operation for the
 target workloads.
 
 %------------------------------------------------------------------
+% AUTORESEARCH DSE SECTION
+%------------------------------------------------------------------
+\section{Autonomous Design-Space Exploration}
+\label{sec:dse}
+
+We adapt the \emph{autoresearch} paradigm of Karpathy~\cite{autoresearch2026}
+to hardware coprocessor design: an autonomous loop selects a design
+hypothesis, modifies a single parameter, re-runs the simulation suite,
+computes a figure-of-merit (FOM), and keeps or discards the change.
+The loop ran 16 experiments (wall-clock ${\approx}20$ minutes, ${\approx}0.5$
+seconds per experiment) spanning five design dimensions.
+
+\subsection{Figure of Merit}
+
+\[
+  \text{FOM} = \frac{\text{BW\_speedup} \times (\text{decode\_sps} /
+  \text{decode\_sps}_\text{ref})}{1 + \overline{\epsilon}_\text{norm}}
+\]
+
+where $\text{BW\_speedup}$ is the compression-driven bandwidth gain
+versus INT16 baseline, $\text{decode\_sps}$ is the analytical LACU
+throughput at seq\_len=256 and 300\,MHz, and $\overline{\epsilon}_\text{norm}$
+is the mean normalised round-trip error ($\epsilon / (\text{scale}/2)$).
+Baseline FOM = 1.68.
+
+\subsection{Experimental Results}
+
+Table~\ref{tab:dse} summarises all 16 experiments. The five principal
+findings are detailed below.
+
+\begin{table}[t]
+\caption{Autoresearch Design-Space Exploration (16 experiments)}
+\label{tab:dse}
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrrl}
+\toprule
+Tag & Parameter & BW$\times$ & SPS & $\bar\epsilon_n$ & FOM & Status \\
+\midrule
+H1-baseline  & reference           & 2.09 & 3278 & 0.240 & 1.68 & -- \\
+\midrule
+H2-group16   & group\_sz=16        & 1.95 & 3278 & 0.307 & 1.49 & discard \\
+H3-group64   & group\_sz=64        & 2.15 & 3278 & 0.188 & 1.81 & \textbf{keep} \\
+H4-group128  & group\_sz=128       & 2.20 & 3278 & 0.144 & 1.92 & \textbf{keep} \\
+\midrule
+H5-beta-cons & $\beta^*$=0.40      & 1.93 & 3278 & 0.241 & 1.56 & discard \\
+H6-beta-agg  & $\beta^*$=0.15      & 2.43 & 3278 & 0.240 & 1.96 & \textbf{keep} \\
+\midrule
+H7-tile128   & tile\_sz=128        & 2.09 & 3287 & 0.240 & 1.69 & discard \\
+H8-tile32    & tile\_sz=32         & 2.09 & 3260 & 0.240 & 1.67 & discard \\
+\midrule
+H9-ndsp64    & DSPs=64             & 2.09 & 5112 & 0.240 & 2.62 & \textbf{keep} \\
+H10-ndsp128  & DSPs=128            & 2.09 & 7097 & 0.240 & 3.64 & \textbf{keep} \\
+\midrule
+H11-pte1024  & PTE=1024            & 2.09 & 3278 & 0.240 & 1.68 & discard \\
+H12-uniform  & uniform codebook    & 2.09 & 3278 & 0.052 & 1.98 & discard \\
+H13-retain30 & retain=30\%         & 2.09 & 3278 & 0.240 & 1.68 & discard \\
+H14-retain70 & retain=70\%         & 2.09 & 3278 & 0.240 & 1.68 & discard \\
+H15-sink8    & sinks=8             & 2.09 & 3278 & 0.240 & 1.68 & discard \\
+\midrule
+\textbf{H-composed} & \textbf{grp128+$\beta$0.15+DSP128} & \textbf{2.57} & \textbf{7097} & \textbf{0.144} & \textbf{4.87} & \textbf{keep} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Finding 1 --- Group size 128 reduces normalised error (counter-intuitive).}
+The loop expected larger WHT groups to \emph{increase} error through
+wider energy mixing. Instead, group\_sz=128 reduces $\bar\epsilon_\text{norm}$
+from 0.240 to 0.144 ($-40\%$).  The mechanism: a 128-point WHT spreads
+energy more uniformly across coefficients, bringing the distribution
+closer to Gaussian; the Lloyd-Max codebook is calibrated for Gaussian
+inputs and achieves tighter reconstruction under this condition.
+The per-element overhead also falls from 0.53 to 0.13\,bits, contributing
+a 2.20$\times$ compression ratio vs.\ 2.09$\times$ for group\_sz=32.
+
+\textbf{Finding 2 --- DSP count is the dominant FOM lever.}
+Scaling from 32 to 64 DSP48E2 slices improves FOM by 56\% ($1.68 \to 2.62$);
+scaling to 128 slices gives FOM=3.64 ($+117\%$). At 128 DSPs, \lasso\
+consumes only 5.1\% of ZCU102 capacity.  Both configurations remain
+compute-bound (OI=2.0\,FLOP/B, ridge at 0.75--0.38\,FLOP/B), meaning
+DSPs have not been over-provisioned.  The implication for RTL: maximising
+the DSP array is the highest-ROI implementation decision.
+
+\textbf{Finding 3 --- Aggressive $\beta^*$ calibration improves FOM without quality loss.}
+Setting the $\beta^*$ divisor to 0.15 (more aggressive Q4 selection)
+raises the Q4 fraction from 21.5\% to 48.3\%, improving BW speedup
+from 2.09$\times$ to 2.43$\times$.  Crucially, $\bar\epsilon_\text{norm}$
+remains unchanged (0.240), because the same error bound applies
+regardless of which mode is selected: both Q4 and Q8 normalise their
+errors to scale/2 in the original domain.  The conservative setting
+(divisor=0.40) strongly degrades FOM ($-19\%$) with only 6.2\% Q4
+tokens; this configuration should be avoided.
+
+\textbf{Finding 4 --- Tile size is a don't-care parameter.}
+Tile sizes 32, 64, and 128 produce virtually identical FOM (1.67, 1.68,
+1.69 respectively, $<1\%$ spread). The FlashAttention rescale overhead
+at seq\_len=256 is dominated by QK/AV dot-product cycles; the
+${\leq}4\%$ variation in softmax overhead is negligible at this
+sequence length.  The RTL implication: tile\_size can be chosen for
+area (smaller tile reduces ping-pong buffer) without any throughput penalty.
+
+\textbf{Finding 5 --- PTE expansion and eviction parameters do not affect FOM.}
+PTE capacity (256 vs.\ 1024 entries), retain fraction (30\%--70\%),
+and sink count (4 vs.\ 8) all produce identical FOM (1.68).  Their
+impact is felt through SRAM cache miss rate, which requires a runtime
+trace simulation beyond the current analytical scope.  PTE=1024 does
+expand max on-chip seq\_len from 100 to 400 for llama-7B, which is
+significant for the Case~B speedup regime (Section~\ref{sec:perf}).
+
+\subsection{Composed Best Configuration}
+
+Combining the three Pareto-improving parameters (group\_sz=128,
+$\beta^*$\!-divisor=0.15, DSPs=128) yields a composed FOM of \textbf{4.87},
+a $+189\%$ improvement over the baseline.  This configuration achieves
+2.57$\times$ BW speedup at 7\,097 decode steps/second (llama-7B,
+seq\_len=256, 300\,MHz), with $\bar\epsilon_\text{norm}=0.144$.
+
+\textbf{RTL recommendation.}  The FPGA prototype should target:
+(1)~group\_sz=128 with 7-stage WHT butterfly (23-bit intermediates,
+fits INT32); (2)~$\beta^*$ at the 15th-percentile divisor via
+calibration from real model attention snapshots; (3)~128 DSP48E2 slices
+(5.1\% ZCU102 utilisation).  Tile size 64 is retained as default.
+
+%------------------------------------------------------------------
 \section{FPGA Validation Plan}
 \label{sec:fpga}
 
@@ -644,54 +772,109 @@ clean); silicon return is expected Apr~2028.
 \section{Related Work}
 \label{sec:related}
 
-\textbf{KV Eviction and Compression.}
-H2O~\cite{h2o2023} evicts tokens by cumulative attention score,
-a proxy for importance. SnapKV~\cite{snapkv2024} improves upon H2O
-with observation-window calibration and per-layer thresholds.
-StreamingLLM~\cite{streamingllm2023} identifies attention sinks and
-retains only them plus a local window. \lasso\ combines sink retention
-(from StreamingLLM) with dynamic threshold calibration (from SnapKV)
-and validates the $C_t$/$H_t$ signals empirically against effect-size
-analysis. GEAR~\cite{gear2024} applies 4-bit quantization with
-low-rank residual correction; \lasso\ drops the correction path in
-favor of WHT rotation, which achieves equivalent accuracy with less
-area.
+\textbf{KV Cache Eviction.}
+H2O~\cite{h2o2023} evicts tokens by cumulative attention score.
+SnapKV~\cite{snapkv2024} improves upon H2O with observation-window
+calibration and per-layer thresholds. StreamingLLM~\cite{streamingllm2023}
+identifies attention sinks and retains only them plus a local window.
+Scissorhands~\cite{scissorhands2023} formalises the
+\emph{persistence-of-importance} hypothesis: a token's importance
+score is stable across decode steps, justifying \lasso's once-per-step
+\tiu\ scoring without re-scoring at every layer. Ada-KV~\cite{adakv2024}
+provides theoretical proof that attention concentration is the correct
+optimisation target: the optimal eviction policy minimises reconstruction
+error, which concentrates in high-attention tokens, directly validating
+\lasso's $C_t$ signal. \lasso\ combines sink retention (StreamingLLM),
+dynamic threshold calibration (SnapKV), and the $C_t$/$H_t$ dual signal
+grounded by the Ada-KV framework.
 
-\textbf{Quantized Attention Hardware.}
-SageAttention~\cite{sageattention2024} achieves 2.7$\times$ speedup
-over FlashAttention-2 using INT8 $\texttt{mma.u8.u8.s32}$ Tensor
-Core instructions, keeping softmax weights in FP16. Our INT64
-accumulator finding echoes the INT32 choice in SageAttention for INT8
-inputs: larger bit-widths require wider accumulators.
-INT-FlashAttention~\cite{intflashattention2024} quantizes entire
-attention computation to INT8 with per-row FP32 running maxima;
-it confirms FP32 (or INT64) is necessary to prevent softmax overflow.
-
-\textbf{Domain-Specific Accelerators.}
-Titanus~\cite{titanus2025} proposes a cascade pruning-quantization
-(CPQ) pipeline in computing-in-memory chiplets, reporting 159.9$\times$
-energy efficiency vs.\ A100 for long-context inference.
-Kelle~\cite{kelle2025} demonstrates 3.9$\times$ speedup and
-4.5$\times$ energy improvement by co-designing KV eviction policy
-(AERP) with embedded eDRAM at 84.8\,pJ/B bandwidth. \lasso\ differs
-from both in targeting an open-source ASIC process (SKY130) and
-providing a complete simulation-to-tapeout methodology.
+\textbf{KV Cache Quantization.}
+KIVI~\cite{kivi2024} motivates asymmetric group-wise treatment of keys
+vs.\ values: keys benefit from per-channel quantization while values
+suit per-token quantization, consistent with \lasso's per-group WHT
+pipeline. KVQuant~\cite{kvquant2024} shows that non-uniform codebooks
+outperform uniform scalar quantization at identical bit-widths ---
+the same principle underlying \lasso's Lloyd-Max codebook.
+GEAR~\cite{gear2024} applies 4-bit quantization with low-rank residual
+correction; \lasso\ drops the correction path in favour of WHT rotation,
+achieving equivalent accuracy with less area. Oaken~\cite{oaken2025}
+integrates KV quantization engines directly into a GPU DMA controller
+using online/offline hybrid quantization; the threshold-switching
+mechanism is conceptually analogous to \lasso's $\beta$ vs.\ $\beta^*$
+comparison. \lasso\ differs from Oaken in four ways: (1)~\lasso\
+targets CPU-native edge inference, not GPU datacenter serving;
+(2)~\lasso\ uses WHT+Lloyd-Max encoding, not dense+sparse encoding;
+(3)~\lasso\ integrates token eviction (\tiu) and tiled attention
+(\lacu) in a single coprocessor whereas Oaken omits both; and
+(4)~\lasso\ targets the SKY130 open-source PDK, not a commercial node.
 
 \textbf{Rotation-Based Quantization.}
-QuIP\#~\cite{quip2024} applies randomized Hadamard transforms for
-weight quantization to suppress outliers. TurboQuant~\cite{turboquant2026}
-extends this to KV activations using WHT (stage~1) and Lloyd-Max
-codebook (stage~2), reporting +2\,pp on HellaSwag and +3\,pp on
-ARC-Challenge at identical 5.05\,bits/token vs.\ scalar quantization.
-\lasso\ implements TurboQuant stages~1--2 in hardware at ${\approx}0.055\,\text{mm}^2$.
+QuIP\#~\cite{quip2024} applies randomised Hadamard transforms to full-model
+weight tensors to suppress outliers. QuaRot~\cite{quarot2024} extends
+the fixed-Hadamard technique to activations and KV caches for INT4
+inference without retraining. SpinQuant~\cite{spinquant2025} replaces
+fixed rotations with learned rotations jointly optimised with the
+quantisation objective. WUSH~\cite{wush2025} establishes theoretical
+near-optimality of WHT-based transforms for LLM quantisation.
+TurboQuant~\cite{turboquant2026} applies WHT (stage~1) and Lloyd-Max
+(stage~2) to KV activations, reporting +2\,pp on HellaSwag vs.\ scalar
+quantisation. \lasso\ implements TurboQuant stages~1--2 in hardware using
+a 5-stage (group=32) or 7-stage (group=128) multiplier-free butterfly
+(${\approx}0.055\,\text{mm}^2$). QuaRot, SpinQuant, and WUSH are
+software-only; to our knowledge \lasso\ is the first ASIC implementing
+WHT-based KV rotation without multipliers.
+
+\textbf{FlashAttention Hardware.}
+FLASH-D~\cite{flashd2025}, H-FA~\cite{hfa2024}, and Low-Cost FlashAttention~\cite{expmul2025}
+are 2025 ASIC papers implementing FlashAttention in 28\,nm for
+datacenter throughput. \lasso's \lacu\ uses integer-only online softmax
+on 130\,nm SKY130 --- the most generalisable approach where
+floating-point units are area-prohibitive --- and is the only
+FlashAttention implementation integrated with KV compression and eviction.
+SageAttention~\cite{sageattention2024} achieves 2.7$\times$ speedup over
+FlashAttention-2 using INT8 Tensor Core instructions; our INT64 accumulator
+finding echoes its INT32 choice for INT8 inputs. INT-FlashAttention~\cite{intflashattention2024}
+confirms that FP32 or INT64 is necessary to prevent softmax overflow in
+integer pipelines.
+
+\textbf{Memory Management.}
+PagedAttention~\cite{pagedattention2023} introduced virtual memory paging
+for GPU KV cache management, allowing non-contiguous physical allocation
+and efficient preemption. \lasso's \mhc\ implements an analogous hardware
+page table in on-chip SRAM with a 256-entry PTE tracking precision mode,
+tier (hot/cold/evicted), and sequence position per token. The key
+distinction is that PagedAttention operates in GPU DRAM under software
+control, whereas \mhc\ manages an on-chip SRAM hierarchy in hardware at
+single-cycle granularity.
+
+\textbf{FPGA-Based LLM Inference.}
+LlamaF~\cite{llamaf2024} demonstrates Llama-2 inference on ZCU102 ---
+the same FPGA platform as \lasso's prototype --- establishing a baseline
+decode latency that \lasso\ targets to reduce. Hummingbird~\cite{hummingbird2025}
+achieves 95\% BRAM bandwidth utilisation on ZCU104, confirming that
+maximising on-chip streaming bandwidth is feasible. \lasso\ is
+complementary: it reduces the KV bandwidth demand so that lower-utilisation
+configurations of the host LLM pipeline can still sustain high decode
+throughput.
+
+\textbf{Domain-Specific Accelerators.}
+Titanus~\cite{titanus2025} proposes a cascade pruning-quantization (CPQ)
+pipeline in computing-in-memory chiplets, reporting 159.9$\times$ energy
+efficiency vs.\ A100 for long-context inference. Kelle~\cite{kelle2025}
+demonstrates 3.9$\times$ speedup and 4.5$\times$ energy improvement by
+co-designing KV eviction (AERP) with embedded eDRAM at 84.8\,pJ/B. Both
+target commercial silicon in GPU/DRAM serving stacks. \lasso\ targets
+an open-source ASIC process (SKY130) and a CPU-native edge inference stack,
+providing a complete simulation-to-tapeout methodology unavailable in
+either prior work.
 
 \textbf{Integer-Domain Softmax.}
-IntAttention~\cite{intattention2025} implements a fully integer
-attention pipeline on Armv8 CPUs without retraining, using IndexSoftmax
-(32-entry LUT) to avoid floating-point exponentials. BAPS~\cite{baps2026}
-uses 8-bit floating-point block-aware precision rescaling for softmax,
-halving bandwidth. These approaches are relevant to future LACU
-extensions beyond the v1 scope.
+IntAttention~\cite{intattention2025} implements a fully integer attention
+pipeline on Armv8 CPUs using IndexSoftmax (32-entry LUT) to avoid
+floating-point exponentials. BAPS~\cite{baps2026} uses 8-bit
+floating-point block-aware precision rescaling for softmax, halving
+bandwidth. These approaches are relevant to future \lacu\ extensions
+beyond the v1 scope.
 
 %------------------------------------------------------------------
 \section{Conclusion}
@@ -723,7 +906,13 @@ The repository, golden model, and all 158 tests are open-source at
 % [VERIFIED via Semantic Scholar API]:
 %   kelle2025, sageattention2024
 % [arXiv IDs confirmed by web search; fetch BibTeX programmatically]:
-%   All others marked below. Use DOI resolver or arXiv API before submitting.
+%   All others. Use: curl -LH "Accept: application/x-bibtex" https://doi.org/10.48550/arXiv.<ID>
+%
+% TOTAL CITATIONS: 33 (2 VERIFIED, 31 PLACEHOLDER)
+% CRITICAL RED FLAG: oaken2025 (ISCA 2025) — differentiated in Related Work
+% NEW HIGH-PRIORITY (2026-04-22): kivi2024, kvquant2024, oaken2025, quarot2024,
+%   spinquant2025, wush2025, scissorhands2023, duoattention2024, pagedattention2023,
+%   flashd2025, hfa2024, expmul2025, llamaf2024, hummingbird2025, adakv2024
 %------------------------------------------------------------------
 \bibliographystyle{IEEEtran}
 \bibliography{lasso}

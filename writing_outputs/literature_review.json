@@ -1,0 +1,99 @@
+{
+  "generated": "2026-04-22",
+  "agent_tool_calls": 77,
+  "papers_found": 33,
+  "topics_searched": 8,
+
+  "red_flags": [
+    {
+      "severity": "MODERATE",
+      "paper": "Oaken",
+      "arxiv": "2503.18599",
+      "venue": "ISCA 2025",
+      "issue": "Published ISCA 2025 hardware paper integrating KV quantization engines + memory management into LLM accelerator DMA. Uses threshold-based online-offline hybrid quantization similar to LASSO beta vs beta* comparison.",
+      "differentiators": [
+        "Targets GPU serving, not CPU-native inference",
+        "Uses dense+sparse encoding, not WHT+Lloyd-Max",
+        "No token eviction (TIU equivalent)",
+        "No FlashAttention tiling (LACU equivalent)",
+        "Commercial node, not SKY130"
+      ],
+      "action": "Must cite and explicitly differentiate in related work"
+    },
+    {
+      "severity": "MODERATE",
+      "paper": "Titanus",
+      "arxiv": "2505.17787",
+      "venue": "GLSVLSI 2025",
+      "issue": "Already cited. Cascade pruning+quantization hardware. Overlaps combined eviction+quantization approach.",
+      "differentiators": ["CIM chiplet not SRAM page manager", "No WHT", "No FlashAttention", "GPU-centric", "Not open-source PDK"],
+      "action": "Already cited, differentiation in place"
+    },
+    {
+      "severity": "LOW",
+      "paper": "FLASH-D / H-FA / Low-Cost FlashAttention",
+      "arxiv": ["2505.14201", "2511.00295", "2505.14314"],
+      "venue": "2025 ASIC papers",
+      "issue": "Three 2025 ASIC papers implement FlashAttention hardware, overlapping LASSO LACU block.",
+      "differentiators": ["All datacenter 28nm, no KV compression, no eviction", "LASSO LACU is one block in larger pipeline"],
+      "action": "Cite all three, note LASSO uses standard online softmax as most generalizable at 130nm"
+    },
+    {
+      "severity": "LOW",
+      "paper": "QuaRot / SpinQuant",
+      "arxiv": ["2404.00456", "2405.16406"],
+      "issue": "Both apply Hadamard rotations to KV caches for 4-bit quantization. WHT on KV entries is shared idea.",
+      "differentiators": ["Software-only", "Full-dimension rotations not 32-element groups", "Full multiplier-based kernels", "Apply to full model not KV alone"],
+      "action": "Cite and note LASSO 32-element multiplier-free butterfly is architecturally distinct"
+    },
+    {
+      "severity": "LOW",
+      "paper": "Hummingbird",
+      "arxiv": "2507.03308",
+      "venue": "arXiv July 2025",
+      "issue": "Targets ZCU104 (same LASSO FPGA platform), achieves 95% bandwidth utilization.",
+      "differentiators": ["No KV compression — LASSO is complementary (reduces BW needed, Hummingbird maximizes utilization of remaining BW)"],
+      "action": "Cite if published before submission, position as complementary"
+    }
+  ],
+
+  "gap_analysis": [
+    "First LLM KV cache coprocessor on SKY130 open-source PDK (no prior peer-reviewed paper found)",
+    "First hardware combining WHT+Lloyd-Max quantization + dual-signal eviction + hardware PTE + FlashAttention tiling in one chip",
+    "CPU-native inference target (all competitors target GPU serving or standalone inference SoC)",
+    "Multiplier-free 5-stage butterfly WHT inside dedicated KV compression ASIC block",
+    "Dual-signal eviction (Ct + Ht) with Cohen's d validation — no prior eviction work uses this statistical framework"
+  ],
+
+  "positioning": "LASSO is the first open-source ASIC KV-cache coprocessor that integrates multiplier-free WHT+Lloyd-Max quantization, dual-signal entropy-concentration eviction, hardware paged SRAM management, and FlashAttention-style tiled attention in a single chip targeting CPU-native LLM inference on SKY130 130nm.",
+
+  "high_priority_citations": [
+    {"key": "kivi2024", "arxiv": "2402.02750", "title": "KIVI: A Tuning-Free Asymmetric 2bit Quantization for KV Cache", "venue": "ICML 2024", "relevance": "Motivates LASSO group-adaptive INT4/INT8 scheme; shows asymmetric key/value treatment"},
+    {"key": "kvquant2024", "arxiv": "2401.18079", "title": "KVQuant: Towards 10 Million Context Length LLM Inference with KV Cache Quantization", "venue": "NeurIPS 2024", "relevance": "Non-uniform NUQ (analogous to Lloyd-Max) for KV; validates optimality of non-uniform codebook"},
+    {"key": "oaken2025", "arxiv": "2503.18599", "title": "Oaken: Fast and Efficient LLM Serving with Online-Offline Hybrid KV Cache Quantization", "venue": "ISCA 2025", "relevance": "Closest hardware competitor — GPU DMA KV quantization engine"},
+    {"key": "quarot2024", "arxiv": "2404.00456", "title": "QuaRot: Outlier-Free 4-Bit Inference in Rotated LLMs", "venue": "NeurIPS 2024", "relevance": "Fixed Hadamard rotation for KV outlier suppression — software analog of LASSO WHT"},
+    {"key": "spinquant2025", "arxiv": "2405.16406", "title": "SpinQuant: LLM Quantization with Learned Rotations", "venue": "ICLR 2025", "relevance": "Learned rotation vs LASSO fixed WHT tradeoff"},
+    {"key": "wush2025", "arxiv": "2512.00956", "title": "WUSH: Near-Optimal Adaptive Transforms for LLM Quantization", "venue": "arXiv 2025", "relevance": "Theoretical near-optimality of WHT-based transforms — strongest theoretical backing for LASSO KVE design"},
+    {"key": "scissorhands2023", "arxiv": "2305.17118", "title": "Scissorhands: Exploiting the Persistence of Importance Hypothesis for LLM KV Cache Compression", "venue": "NeurIPS 2023", "relevance": "Persistence-of-importance hypothesis underlying LASSO TIU scoring"},
+    {"key": "duoattention2024", "arxiv": "2410.10819", "title": "DuoAttention: Efficient Long-Context LLM Inference with Retrieval and Streaming Heads", "venue": "ICLR 2025", "relevance": "Streaming head = attention sink bypass — validates LASSO TIU sink bypass"},
+    {"key": "pagedattention2023", "arxiv": "2309.06180", "title": "Efficient Memory Management for Large Language Model Serving with PagedAttention", "venue": "SOSP 2023", "relevance": "Direct architectural antecedent of LASSO MHC hardware page table"},
+    {"key": "flashd2025", "arxiv": "2505.14201", "title": "FLASH-D: FlashAttention with Hidden Softmax Division", "venue": "arXiv 2025", "relevance": "ASIC FlashAttention hardware — LACU comparison"},
+    {"key": "hfa2024", "arxiv": "2511.00295", "title": "H-FA: A Hybrid Floating-Point and Logarithmic Approach to Hardware Accelerated FlashAttention", "venue": "arXiv 2024/2025", "relevance": "Log-domain FlashAttention ASIC — LACU design-space comparison"},
+    {"key": "expmul2025", "arxiv": "2505.14314", "title": "Low-Cost FlashAttention with Fused Exponential and Multiplication Hardware Operators", "venue": "arXiv 2025", "relevance": "ExpMul ASIC operator — motivates LASSO LACU integer-only approach"},
+    {"key": "llamaf2024", "arxiv": "2409.11424", "title": "LlamaF: An Efficient Llama2 Architecture Accelerator on Embedded FPGAs", "venue": "CIKM 2024", "relevance": "ZCU102 LLM inference baseline — same FPGA platform as LASSO validation"},
+    {"key": "hummingbird2025", "arxiv": "2507.03308", "title": "Hummingbird: A Smaller and Faster Large Language Model Accelerator on Embedded FPGA", "venue": "arXiv 2025", "relevance": "ZCU104 SOTA (same platform) — LASSO is complementary coprocessor"},
+    {"key": "adakv2024", "arxiv": "2407.11550", "title": "Ada-KV: Optimizing KV Cache Eviction by Adaptive Budget Allocation for Attention Heads", "venue": "NeurIPS 2025", "relevance": "Theoretical proof that concentration is correct optimization target for eviction — validates LASSO TIU Ct signal"}
+  ],
+
+  "medium_priority_citations": [
+    {"key": "pyramidkv2024", "arxiv": "2406.02069", "venue": "ACL Findings 2024"},
+    {"key": "razorattention2024", "arxiv": "2407.15891", "venue": "arXiv 2024"},
+    {"key": "gsr2025", "arxiv": "2505.03810", "venue": "ACL SRW 2025"},
+    {"key": "skvq2024", "arxiv": "2405.06219", "venue": "COLM 2024"},
+    {"key": "memctrl2025", "arxiv": "2503.18869", "venue": "arXiv 2025"},
+    {"key": "systolicattn2025", "arxiv": "2507.11331", "venue": "arXiv 2025"},
+    {"key": "quantspec2025", "arxiv": "2502.10424", "venue": "ICML 2025"},
+    {"key": "attnvalue2024", "arxiv": "2406.12335", "venue": "EMNLP 2024"},
+    {"key": "famous2024", "arxiv": "2409.14023", "venue": "FPT 2024"}
+  ]
+}
