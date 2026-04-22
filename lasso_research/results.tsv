@@ -1,0 +1,17 @@
+tag	group	tile	beta_div	ndsp	pte	codebook	retain	fom	bw_speedup	decode_sps	norm_err	status	notes
+H1-baseline	32	64	0.267	32	256	lloyd_max	0.5	1.6818	2.086	3278	0.24021	keep	Baseline: group=32 tile=64 beta=0.267 ndsp=32 pte=256
+H2-group16	16	64	0.267	32	256	lloyd_max	0.5	1.4933	1.951	3278	0.30667	discard	Reduce group size to 16: less WHT mixing -> lower error, more per-element overhe
+H3-group64	64	64	0.267	32	256	lloyd_max	0.5	1.8108	2.15	3278	0.18754	keep	Increase group size to 64: more WHT mixing -> better compression, larger errors
+H4-group128	128	64	0.267	32	256	lloyd_max	0.5	1.92	2.197	3278	0.14437	keep	Group size 128: maximum compression ratio, expect error degradation
+H5-beta-conservative	32	64	0.4	32	256	lloyd_max	0.5	1.557	1.932	3278	0.24074	discard	Higher beta* divisor -> harder to be Q4 -> more Q8 -> better quality, less compr
+H6-beta-aggressive	32	64	0.15	32	256	lloyd_max	0.5	1.9557	2.425	3278	0.2399	keep	Lower beta* divisor -> easier to be Q4 -> more Q4 -> more compression, higher er
+H7-tile128	32	128	0.267	32	256	lloyd_max	0.5	1.6865	2.086	3287	0.24021	discard	LACU tile size 128: fewer softmax rescales (seq/128 vs seq/64), larger on-chip f
+H8-tile32	32	32	0.267	32	256	lloyd_max	0.5	1.6725	2.086	3260	0.24021	discard	LACU tile size 32: more softmax rescales, potentially better numerical precision
+H9-ndsp64	32	64	0.267	64	256	lloyd_max	0.5	2.6227	2.086	5112	0.24021	keep	Double DSP count to 64: 2x compute throughput, check if still compute-bound
+H10-ndsp128	32	64	0.267	128	256	lloyd_max	0.5	3.6412	2.086	7097	0.24021	keep	128 DSPs: 4x throughput, roofline may shift to memory-bound for typical workload
+H11-pte1024	32	64	0.267	32	1024	lloyd_max	0.5	1.6818	2.086	3278	0.24021	discard	Expand PTE to 1024 entries: 4x more tokens can live in SRAM
+H12-uniform-codebook	32	64	0.267	32	256	uniform	0.5	1.9827	2.086	3278	0.05204	discard	Uniform quantization instead of Lloyd-Max: simpler hardware (no LUT), expect hig
+H13-retain30	32	64	0.267	32	256	lloyd_max	0.3	1.6818	2.086	3278	0.24021	discard	Aggressive eviction (retain 30%): more tokens evicted, SRAM holds fewer but most
+H14-retain70	32	64	0.267	32	256	lloyd_max	0.7	1.6818	2.086	3278	0.24021	discard	Conservative eviction (retain 70%): keep most tokens, SRAM fills faster
+H15-sink8	32	64	0.267	32	256	lloyd_max	0.5	1.6818	2.086	3278	0.24021	discard	Double attention sinks to 8: more tokens bypass eviction scoring
+H_composed	128	64	0.15	128	256	lloyd_max	0.5	4.8688	2.573	7097	0.14425	keep	Composed best: ['group_size', 'beta_star_divisor', 'n_dsp']
