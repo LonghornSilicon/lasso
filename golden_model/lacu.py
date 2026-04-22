@@ -17,6 +17,34 @@ from typing import Tuple
 TILE_SIZE = 64  # Default tile size
 
 
+INT32_MAX = 2_147_483_647
+INT64_MAX = 9_223_372_036_854_775_807
+
+
+def fixed_point_dot_product_int64(a: np.ndarray, b: np.ndarray) -> int:
+    """
+    Integer dot product using INT64 accumulator — matches RTL requirement.
+
+    For head_dim=64, INT16 inputs: max single dot product = 64 × 32767²
+    = 6.87×10¹⁰, which overflows INT32 (max 2.15×10⁹) but fits INT64.
+
+    On DSP48E2 (ZCU102/ZCU104): cascade two DSPs or use 48-bit accumulator
+    with carry chain to reach INT64. The 48-bit accumulator of DSP48E2 covers
+    up to 2.81×10¹⁴, which is sufficient for any single INT16×INT16 dot
+    product up to head_dim=4096 (4096 × 32767² = 4.40×10¹²).
+
+    Returns
+    -------
+    int : accumulated dot product (INT64)
+    """
+    a = np.asarray(a, dtype=np.int64)
+    b = np.asarray(b, dtype=np.int64)
+    result = int(np.dot(a, b))
+    if abs(result) > INT64_MAX:
+        raise OverflowError(f"INT64 overflow: {result}")
+    return result
+
+
 def dot_product(a: np.ndarray, b: np.ndarray) -> float:
     """
     Simple integer/float dot product of two 1-D arrays.

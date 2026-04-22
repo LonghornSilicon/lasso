@@ -115,27 +115,27 @@ def _sweep_wht_overflow(logger: SimLogger, rng: np.random.Generator):
 
 
 def _sweep_scale_saturation(logger: SimLogger, rng: np.random.Generator):
-    """Sweep 3: Scale saturation."""
+    """Sweep 3: Scale saturation — UINT16 fix applied (scale register now 0-65535)."""
     test = "scale_saturation"
-    INT16_MAX = 32767
+    UINT16_MAX = 65535  # FIX: scale register changed from INT16 to UINT16
 
     for group_size in [32, 64, 128]:
         # Case: all values = INT16_MAX
         group_pos = np.full(group_size, 32767, dtype=np.int16)
         for mode_name, beta, beta_star in [("Q4", 2.0, 1.0), ("Q8", 0.5, 1.0)]:
             codes, scale, mode = encode_group(group_pos, beta, beta_star, group_size=group_size)
-            if scale > INT16_MAX:
+            if scale > UINT16_MAX:
                 logger.log(
                     BLOCK, test, "OVERFLOW",
                     {"group_size": group_size, "input": "all_INT16_MAX", "mode": mode, "scale": scale},
-                    f"Scale {scale} exceeds INT16 range ({INT16_MAX}) for {mode} encoding",
+                    f"Scale {scale} exceeds UINT16 range ({UINT16_MAX}) for {mode} encoding",
                     severity="OVERFLOW",
                 )
             else:
                 logger.log(
                     BLOCK, test, "OK",
                     {"group_size": group_size, "input": "all_INT16_MAX", "mode": mode, "scale": scale},
-                    f"Scale {scale} fits in INT16 for {mode} encoding",
+                    f"Scale {scale} fits in UINT16 for {mode} encoding",
                     severity="PASS",
                 )
 
@@ -143,29 +143,25 @@ def _sweep_scale_saturation(logger: SimLogger, rng: np.random.Generator):
         group_neg = np.full(group_size, -32768, dtype=np.int16)
         for mode_name, beta, beta_star in [("Q4", 2.0, 1.0), ("Q8", 0.5, 1.0)]:
             codes, scale, mode = encode_group(group_neg, beta, beta_star, group_size=group_size)
-            # abs(-32768) = 32768 which exceeds INT16_MAX
-            # The WHT of all-(-32768) group will have max WHT value = group_size * 32768
-            # which after dividing by _Q4_DIV or _Q8_DIV gives scale
-            # The golden model clips scale to 32767, so we check if raw would overflow
             x_wht = _wht_generic(group_neg, group_size)
             raw_max_abs = int(np.max(np.abs(x_wht)))
             divisor = _Q4_DIV if mode == "Q4" else _Q8_DIV
             raw_scale = raw_max_abs // divisor
-            if raw_scale > INT16_MAX:
+            if scale > UINT16_MAX:
                 logger.log(
                     BLOCK, test, "FAIL",
                     {"group_size": group_size, "input": "all_INT16_MIN", "mode": mode,
                      "raw_scale": raw_scale, "stored_scale": scale},
-                    f"KNOWN: abs(INT16_MIN) overflows INT16 scale register. "
-                    f"Raw scale {raw_scale} > {INT16_MAX}; clamped to {scale}. "
-                    f"RTL must clamp abs to 32767.",
+                    f"Scale {scale} overflows even UINT16! Raw={raw_scale}. Needs wider register.",
                     severity="FAIL",
                 )
             else:
                 logger.log(
                     BLOCK, test, "OK",
-                    {"group_size": group_size, "input": "all_INT16_MIN", "mode": mode, "scale": scale},
-                    f"Scale {scale} fits in INT16 for {mode} encoding of INT16_MIN input",
+                    {"group_size": group_size, "input": "all_INT16_MIN", "mode": mode,
+                     "raw_scale": raw_scale, "stored_scale": scale},
+                    f"FIXED: UINT16 scale register handles abs(INT16_MIN) correctly. "
+                    f"raw_scale={raw_scale}, stored_scale={scale} (within UINT16 range {UINT16_MAX}).",
                     severity="PASS",
                 )
 

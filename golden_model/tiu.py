@@ -188,6 +188,70 @@ def should_retain(
     return bool(score >= threshold)
 
 
+def calibrate_threshold(
+    attn_weights_batch: list,
+    target_retain_fraction: float = 0.5,
+    sink_count: int = 4,
+    w_c: float = 0.6,
+    w_h: float = 0.4,
+) -> float:
+    """
+    Calibrate the eviction threshold from real attention weight observations.
+
+    The simulation sweep found that random uniform attention produces scores
+    ~0.038, causing 100% eviction at any threshold above 0.04. Real transformer
+    attention is highly peaked (entropy 2–4 bits vs log2(N) for uniform).
+    This function calibrates the threshold from observed distributions.
+
+    Algorithm: compute composite scores for all non-sink tokens across a batch
+    of real attention snapshots, then set threshold at the
+    (1 - target_retain_fraction) percentile so the desired fraction is retained.
+
+    Parameters
+    ----------
+    attn_weights_batch : list of np.ndarray, each shape (n_heads, n_tokens)
+        Attention weight snapshots from real model inference (prefill or decode).
+        Minimum recommended: 10–50 samples from target domain.
+    target_retain_fraction : float
+        Fraction of non-sink tokens to retain (default 0.5 = retain top 50%).
+    sink_count : int
+        Number of attention sink tokens always retained.
+    w_c, w_h : float
+        Importance score weights matching hardware CSR values.
+
+    Returns
+    -------
+    threshold : float
+        Calibrated threshold. Write to TIU_THRESH_CSR as round(threshold × 0xFFFF).
+
+    Notes
+    -----
+    Per SnapKV (Li et al., 2024): dynamic threshold calibration from an
+    observation window outperforms static thresholds for long-context tasks.
+    Per StreamingLLM (Xiao et al., 2023): attention sinks absorb 45–55% of
+    total attention mass in pre-norm transformers — always retain.
+    """
+    scores = []
+    for attn_weights in attn_weights_batch:
+        attn_weights = np.asarray(attn_weights, dtype=np.float64)
+        seq_len = attn_weights.shape[-1] if attn_weights.ndim > 1 else len(attn_weights)
+        for tok_idx in range(seq_len):
+            if tok_idx < sink_count:
+                continue
+            ct = compute_ct(attn_weights)
+            ht = compute_ht(attn_weights)
+            score = compute_importance_score(ct, ht, seq_len, w_c, w_h)
+            scores.append(score)
+
+    if not scores:
+        return 0x4000 / 0xFFFF  # fallback to PRD default
+
+    scores = np.array(scores)
+    percentile = (1.0 - target_retain_fraction) * 100.0
+    threshold = float(np.percentile(scores, percentile))
+    return float(np.clip(threshold, 0.0, 1.0))
+
+
 def score_token(
     token_idx: int,
     attn_weights: np.ndarray,

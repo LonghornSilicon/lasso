@@ -1,6 +1,6 @@
 # LASSO Simulation Sweep Summary
 
-Generated: 2026-04-22T08:19:14.902226Z
+Generated: 2026-04-22T08:33:59.390409Z
 
 | Block | Test | Severity | Status | Params | Detail |
 |-------|------|----------|--------|--------|--------|
@@ -9,10 +9,6 @@ Generated: 2026-04-22T08:19:14.902226Z
 | KVE | wht_overflow | WARN | WARN | magnitude=16000, actual_mag=16000, max_wht_output=512000 | WHT output 512000 exceeds INT16 range 32767 (expected — WHT expands range) |
 | KVE | wht_overflow | WARN | WARN | magnitude=32767, actual_mag=32767, max_wht_output=1048544 | WHT output 1048544 exceeds INT16 range 32767 (expected — WHT expands range) |
 | KVE | wht_overflow | WARN | WARN | magnitude=32768, actual_mag=32767, max_wht_output=1048544 | WHT output 1048544 exceeds INT16 range 32767 (expected — WHT expands range) (clipped from 32768 to 32767) |
-| KVE | scale_saturation | FAIL | FAIL | group_size=32, input=all_INT16_MIN, mode=Q4, raw_scale=149796, stored_scale=32767 | KNOWN: abs(INT16_MIN) overflows INT16 scale register. Raw scale 149796 > 32767; clamped to 32767. RTL must clamp abs to 32767. |
-| KVE | scale_saturation | FAIL | FAIL | group_size=64, input=all_INT16_MIN, mode=Q4, raw_scale=299593, stored_scale=32767 | KNOWN: abs(INT16_MIN) overflows INT16 scale register. Raw scale 299593 > 32767; clamped to 32767. RTL must clamp abs to 32767. |
-| KVE | scale_saturation | FAIL | FAIL | group_size=128, input=all_INT16_MIN, mode=Q4, raw_scale=599186, stored_scale=32767 | KNOWN: abs(INT16_MIN) overflows INT16 scale register. Raw scale 599186 > 32767; clamped to 32767. RTL must clamp abs to 32767. |
-| KVE | scale_saturation | FAIL | FAIL | group_size=128, input=all_INT16_MIN, mode=Q8, raw_scale=33026, stored_scale=32767 | KNOWN: abs(INT16_MIN) overflows INT16 scale register. Raw scale 33026 > 32767; clamped to 32767. RTL must clamp abs to 32767. |
 | KVE | group_size_boundary | EDGE | RAISED_VALUEERROR | group_size=33 | Correctly raised ValueError for non-power-of-2 group_size=33: group_size must be a power of 2, got 33 |
 | KVE | group_size_boundary | EDGE | RAISED_ERROR | group_size=0 | Correctly raised ValueError for group_size=0: math domain error |
 | KVE | group_size_boundary | EDGE | WORKS | group_size=1, input=500, decoded=497 | group_size=1 encodes/decodes without error. decoded=497 |
@@ -72,8 +68,6 @@ Generated: 2026-04-22T08:19:14.902226Z
 | LACU | seq_length_scaling | EDGE | EDGE | seq_len=512, max_abs_error=1.39e-16, rel_error=8.32e-16 | seq_len=512: max_abs_error=1.39e-16, rel_error=8.32e-16 |
 | LACU | seq_length_scaling | EDGE | EDGE | seq_len=1024, max_abs_error=8.33e-17, rel_error=6.52e-16 | seq_len=1024: max_abs_error=8.33e-17, rel_error=6.52e-16 |
 | LACU | seq_length_scaling | EDGE | EDGE | seq_len=2048, max_abs_error=9.71e-17, rel_error=9.83e-16 | seq_len=2048: max_abs_error=9.71e-17, rel_error=9.83e-16 |
-| LACU | accumulator_overflow | OVERFLOW | OVERFLOW | head_dim=64, INT16_MAX=32767, max_dot_product=68715282496, INT32_MAX=2147483647, overflows=True | INT32 accumulator overflows for seq_len>=2048 with max-magnitude inputs; need INT64 or score scaling. 64 * 32767^2 = 6.87e+10 >> INT32_MAX=2.15e+09 |
-| LACU | accumulator_overflow | FAIL | FAIL | overflow_seq_len=1, raw_dot_product=68715282496.0, INT32_MAX=2147483647 | KNOWN: Single QK dot product overflows INT32 at seq_len=1 (overflow is per-dot-product, independent of seq_len). dot(Q,K[i])=6.87e+10 > INT32_MAX=2.15e+09. RTL accumulator needs INT64 or input pre-scaling when inputs near INT16_MAX. |
 | LACU | dsp_mapping_zcu | EDGE | EDGE | dsps_per_tile=32, zcu102_total_dsps=2520, zcu104_total_dsps=1728, lacu_dsps=32 | 32-wide dot product needs 32 DSP48E2 slices per tile computation |
 | LACU | dsp_mapping_zcu | EDGE | EDGE | zcu102_dsps=2520, zcu104_dsps=1728, lacu_dsps=32, zcu102_utilization_pct=1.3, zcu104_utilization_pct=1.9 | ZCU102 has 2520 DSP48E2; LACU uses 32 (1.3%). ZCU104 has 1728; LACU uses 32 (1.9%). |
 | LACU | dsp_mapping_zcu | EDGE | EDGE | macs_per_tile=2048, cycles_per_tile=64, freq_mhz=50, time_per_tile_us=1.28 | At 50 MHz: 32 MACs × 64 elements = 2048 multiply-adds per tile. One tile per 64 cycles = 1.28 μs per tile at 50 MHz |

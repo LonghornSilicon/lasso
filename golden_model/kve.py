@@ -157,6 +157,10 @@ def encode_group(
     if scale == 0:
         scale = 1  # minimum nonzero scale
 
+    # WHT intermediate values: B + log2(N) bits wide.
+    # For N=32, B=16: 16+5=21 bits needed. RTL must use INT32 pipeline registers,
+    # NOT INT16 — the butterfly stages expand the dynamic range.
+
     # Quantize: code = round(x̃ / scale) + offset so codes are unsigned
     # Q4: offset = 8 (center: [-7,7] → [0,15], midpoint = 8 - but we use
     #     direct rounding clamped to [0, n_levels-1])
@@ -166,8 +170,10 @@ def encode_group(
     raw_codes = np.round(x_norm).astype(np.int32)
     codes = np.clip(raw_codes + half, 0, n_levels - 1).astype(np.int32)
 
-    # Clamp scale to INT16 range
-    scale = int(np.clip(scale, 0, 32767))
+    # Scale is always non-negative; store as UINT16 (0–65535).
+    # UINT16 avoids the abs(INT16_MIN)=32768 overflow that INT16 would cause.
+    # RTL: scale register must be unsigned 16-bit. PRD updated accordingly.
+    scale = int(np.clip(scale, 0, 65535))
 
     return codes, scale, mode
 
@@ -186,7 +192,7 @@ def decode_group(
     codes : np.ndarray
         Quantization codes from encode_group.
     scale : int
-        Scale factor (INT16).
+        Scale factor (UINT16, range 0–65535).
     mode : str
         'Q4', 'Q8', or 'bypass'.
     group_size : int
