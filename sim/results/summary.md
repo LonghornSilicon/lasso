@@ -1,6 +1,6 @@
 # LASSO Simulation Sweep Summary
 
-Generated: 2026-04-22T08:33:59.390409Z
+Generated: 2026-04-30T06:29:48.881931Z
 
 | Block | Test | Severity | Status | Params | Detail |
 |-------|------|----------|--------|--------|--------|
@@ -58,16 +58,16 @@ Generated: 2026-04-22T08:33:59.390409Z
 | MHC | sram_capacity | WARN | WARN | pte_capacity=256, q4_sram_used_kb=8, q4_utilization_pct=2.08, q8_sram_used_kb=16, q8_utilization_pct=4.17 | PTE capacity (256 entries) is the binding constraint, not SRAM capacity. Q4: 8192 B used of 393216 B (2.1%). Q8: 16384 B used (4.2%). |
 | LACU | seq_length_scaling | EDGE | EDGE | seq_len=1, max_abs_error=0.0, rel_error=0.0 | seq_len=1: max_abs_error=0.00e+00, rel_error=0.00e+00 |
 | LACU | seq_length_scaling | EDGE | EDGE | seq_len=2, max_abs_error=2.22e-16, rel_error=9.77e-17 | seq_len=2: max_abs_error=2.22e-16, rel_error=9.77e-17 |
-| LACU | seq_length_scaling | EDGE | EDGE | seq_len=4, max_abs_error=2.22e-16, rel_error=1.32e-16 | seq_len=4: max_abs_error=2.22e-16, rel_error=1.32e-16 |
-| LACU | seq_length_scaling | EDGE | EDGE | seq_len=8, max_abs_error=2.22e-16, rel_error=1.82e-16 | seq_len=8: max_abs_error=2.22e-16, rel_error=1.82e-16 |
+| LACU | seq_length_scaling | EDGE | EDGE | seq_len=4, max_abs_error=1.11e-16, rel_error=6.61e-17 | seq_len=4: max_abs_error=1.11e-16, rel_error=6.61e-17 |
+| LACU | seq_length_scaling | EDGE | EDGE | seq_len=8, max_abs_error=2.78e-16, rel_error=2.28e-16 | seq_len=8: max_abs_error=2.78e-16, rel_error=2.28e-16 |
 | LACU | seq_length_scaling | EDGE | EDGE | seq_len=16, max_abs_error=2.22e-16, rel_error=1.74e-16 | seq_len=16: max_abs_error=2.22e-16, rel_error=1.74e-16 |
 | LACU | seq_length_scaling | EDGE | EDGE | seq_len=32, max_abs_error=3.33e-16, rel_error=3.22e-16 | seq_len=32: max_abs_error=3.33e-16, rel_error=3.22e-16 |
 | LACU | seq_length_scaling | EDGE | EDGE | seq_len=64, max_abs_error=1.11e-16, rel_error=2.71e-16 | seq_len=64: max_abs_error=1.11e-16, rel_error=2.71e-16 |
 | LACU | seq_length_scaling | EDGE | EDGE | seq_len=128, max_abs_error=1.39e-16, rel_error=3.6e-16 | seq_len=128: max_abs_error=1.39e-16, rel_error=3.60e-16 |
 | LACU | seq_length_scaling | EDGE | EDGE | seq_len=256, max_abs_error=1.11e-16, rel_error=4.34e-16 | seq_len=256: max_abs_error=1.11e-16, rel_error=4.34e-16 |
-| LACU | seq_length_scaling | EDGE | EDGE | seq_len=512, max_abs_error=1.39e-16, rel_error=8.32e-16 | seq_len=512: max_abs_error=1.39e-16, rel_error=8.32e-16 |
-| LACU | seq_length_scaling | EDGE | EDGE | seq_len=1024, max_abs_error=8.33e-17, rel_error=6.52e-16 | seq_len=1024: max_abs_error=8.33e-17, rel_error=6.52e-16 |
-| LACU | seq_length_scaling | EDGE | EDGE | seq_len=2048, max_abs_error=9.71e-17, rel_error=9.83e-16 | seq_len=2048: max_abs_error=9.71e-17, rel_error=9.83e-16 |
+| LACU | seq_length_scaling | EDGE | EDGE | seq_len=512, max_abs_error=9.71e-17, rel_error=5.82e-16 | seq_len=512: max_abs_error=9.71e-17, rel_error=5.82e-16 |
+| LACU | seq_length_scaling | EDGE | EDGE | seq_len=1024, max_abs_error=6.59e-17, rel_error=5.16e-16 | seq_len=1024: max_abs_error=6.59e-17, rel_error=5.16e-16 |
+| LACU | seq_length_scaling | EDGE | EDGE | seq_len=2048, max_abs_error=8.33e-17, rel_error=8.42e-16 | seq_len=2048: max_abs_error=8.33e-17, rel_error=8.42e-16 |
 | LACU | dsp_mapping_zcu | EDGE | EDGE | dsps_per_tile=32, zcu102_total_dsps=2520, zcu104_total_dsps=1728, lacu_dsps=32 | 32-wide dot product needs 32 DSP48E2 slices per tile computation |
 | LACU | dsp_mapping_zcu | EDGE | EDGE | zcu102_dsps=2520, zcu104_dsps=1728, lacu_dsps=32, zcu102_utilization_pct=1.3, zcu104_utilization_pct=1.9 | ZCU102 has 2520 DSP48E2; LACU uses 32 (1.3%). ZCU104 has 1728; LACU uses 32 (1.9%). |
 | LACU | dsp_mapping_zcu | EDGE | EDGE | macs_per_tile=2048, cycles_per_tile=64, freq_mhz=50, time_per_tile_us=1.28 | At 50 MHz: 32 MACs × 64 elements = 2048 multiply-adds per tile. One tile per 64 cycles = 1.28 μs per tile at 50 MHz |
